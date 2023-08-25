@@ -1,0 +1,55 @@
+automaton abp () {
+	variables {
+		sender_x : bool init false;
+		receiver_y : bool init false;
+		receiver_z : bool init true;
+		sender_uc_reqWrite : bool;
+		sender_uc_reqRead : bool;
+		sender_uc_value : bool;
+		sender_c_reqWrite : bool;
+		sender_c_reqRead : bool;
+		sender_c_value : bool;
+		receiver_uc_reqWrite : bool;
+		receiver_uc_reqRead : bool;
+		receiver_uc_value : bool;
+		receiver_c_reqWrite : bool;
+		receiver_c_reqRead : bool;
+		receiver_c_value : bool;
+	}
+	transitions {
+		group {
+			!sender_uc_reqWrite -> sender_uc_reqWrite = true;
+			!receiver_uc_reqRead -> receiver_uc_reqRead =true;
+			receiver_z == receiver_y -> [0.9]{
+				receiver_y = !receiver_y;
+				receiver_c_reqWrite = true;
+				receiver_c_value = receiver_z;
+			}
+			receiver_z ==receiver_y -> [0.1]{
+				receiver_z = !receiver_z;
+			}
+			sender_uc_reqRead != receiver_uc_reqRead -> sender_uc_reqRead = receiver_uc_reqRead;
+			receiver_uc_reqWrite != sender_uc_reqWrite -> receiver_uc_reqWrite = sender_uc_reqWrite;
+			receiver_c_reqRead != sender_c_reqRead -> receiver_c_reqRead = sender_c_reqRead;
+			sender_c_reqWrite != receiver_c_reqWrite -> sender_c_reqWrite = receiver_c_reqWrite;
+			sender_uc_reqWrite && sender_uc_reqRead && receiver_uc_reqWrite && receiver_uc_reqRead -> {
+				sender_uc_value = sender_x;
+				sender_uc_reqWrite = false;
+				sender_uc_reqRead = false;
+				receiver_uc_value = sender_uc_value;
+				receiver_uc_reqWrite = false;
+				receiver_uc_reqRead = false;
+				receiver_z = receiver_uc_value;
+				sender_c_reqRead = true;
+			}
+			receiver_c_reqWrite && receiver_c_reqRead && sender_c_reqWrite && sender_c_reqRead -> {
+				receiver_c_reqWrite = false;
+				receiver_c_reqRead = false;
+				sender_c_value = receiver_c_value;
+				sender_c_reqWrite = false;
+				sender_c_reqRead = false;
+				sender_x = !sender_c_value;
+			}
+		}
+	}
+}

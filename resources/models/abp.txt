@@ -1,0 +1,98 @@
+automaton Sender (c: in bool, uc: out bool){
+	variables {
+		x : bool init false;
+	}
+	transitions {
+		group{
+			!uc.reqWrite -> uc.reqWrite = true;
+			uc.reqWrite && uc.reqRead -> {
+				uc.value = x;
+				sync uc;
+				c.reqRead=true;
+			}
+			c.reqWrite && c.reqRead -> {
+				sync c;
+				x = !c.value;
+			}
+		}
+	}
+}
+
+automaton Receiver (c: out bool, uc: out bool){
+	variables {
+		y : bool init false;
+		z : bool init true;
+	}
+	transitions {
+		group{
+			!uc.reqRead -> uc.reqRead = true;
+			uc.reqWrite && uc.reqRead -> {
+				sync uc;
+				z=uc.value;
+			}
+			z == y -> [0.9]{
+				y=!y;
+				c.reqWrite=true;
+				c.value=z;
+			}
+			z == y -> [0.1]{
+				z=!z;
+			}
+			c.reqWrite && c.reqRead -> {
+				sync c;
+			}
+		}
+	}
+}
+
+
+automaton Sync (IN: in bool, OUT: out bool){
+	transitions {
+		group{
+			IN.reqRead != OUT.reqRead -> IN.reqRead = OUT.reqRead;
+			OUT.reqWrite != IN.reqWrite -> OUT.reqWrite = IN.reqWrite;
+			IN.reqRead && OUT.reqWrite -> {
+				sync IN;
+				OUT.value = IN.value;
+				sync OUT;
+			}
+		}
+	}
+}
+
+system abp () {
+	components {
+		sender : Sender;
+		receiver : Receiver;
+	}
+	connections {
+		Sync(sender.uc, receiver.uc);
+		Sync(receiver.c, sender.c);
+	}
+}
+	
+
+automaton <max: int> Counter (OUT: out bool){
+	variables {
+		count : int 0 .. max init 0;
+	}
+	transitions {
+		count < max -> {
+			count = count + 1;
+			sync OUT;
+		}
+	}
+}
+
+automaton Counter (IN: in bool, OUT: out bool){
+	variables {
+		count : int init 4;
+	}
+	transitions {
+		IN.reqRead == false -> IN.reqRead = true;
+		IN.reqRead == true && IN.reqWrite == true -> {
+			sync IN;
+			count = count - 1;
+		}
+	}
+}

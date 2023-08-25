@@ -1,0 +1,90 @@
+automaton philosopher (REC_l: in bool, REC_r: in bool, SEND_l: out bool, SEND_r: out bool) {
+	variables {
+		phase : int 0..3 init 3;
+		left : bool init false;
+		right : bool init true;
+	}
+	transitions {
+		phase == 0 && !right && !left -> [0.5] REC_l.reqRead = true;
+		phase == 0 && !right && !left -> [0.5] REC_r.reqRead = true;
+		phase == 0 && (right || left) -> phase = 1;
+		phase == 1 && right -> {
+			REC_l.reqRead = true;
+			phase = 2;
+		}
+		phase == 1 && left -> {
+			REC_r.reqRead = true;
+			phase = 2;
+		}
+		phase == 2 && !right -> SEND_l.reqWrite = true;
+		phase == 2 && !left -> SEND_r.reqWrite = true;
+		phase == 2 && !left && !right -> phase = 0;
+		phase == 2 && right && left -> phase = 3;
+		phase == 3 -> {
+			SEND_l.reqWrite = true;
+			SEND_r.reqWrite = true;
+		}
+		phase == 3 && !left && !right -> phase = 0;
+		REC_l.reqWrite && REC_l.reqRead -> {
+			sync REC_l;
+			left = REC_l.value;
+		}
+		REC_r.reqWrite && REC_r.reqRead -> {
+			sync REC_r;
+			right = REC_r.value;
+		}
+		SEND_l.reqWrite && SEND_r.reqRead -> {
+			SEND_l.value = left;
+			sync SEND_l;
+			left = false;
+		}
+		SEND_r.reqWrite && SEND_r.reqRead -> {
+			SEND_r.value = right;
+			sync SEND_r;
+			right = false;
+		}
+	}
+}
+
+automaton chopstick (SEND_l: out bool, SEND_r: out bool, REC_l: in bool, REC_r: in bool) {
+	variables{
+		state : bool init true;
+	}
+	transitions{
+		!SEND_l.reqWrite -> SEND_l.reqWrite = true;
+		!SEND_r.reqWrite -> SEND_r.reqWrite = true;
+		SEND_l.reqWrite && SEND_l.reqRead -> {
+			SEND_l.value = state;
+			sync SEND_l;
+			state = false;
+		}
+		SEND_r.reqWrite && SEND_r.reqRead -> {
+			SEND_r.value = state;
+			sync SEND_r;
+			state = false;
+		}
+		state == false -> {
+			REC_l.reqRead = true;
+			REC_r.reqRead = true;
+		}
+		REC_l.reqWrite && REC_l.reqRead -> {
+			sync REC_l;
+			state = REC_l.value;
+		}
+		REC_r.reqWrite && REC_l.reqRead -> {
+			sync REC_r;
+			state = REC_r.value;
+		}
+	}
+}
+
+system dp () {
+	components {
+		ph1, ph2, ph3 : philosopher;
+	}
+	connections {
+		chopstick(ph1.REC_r, ph2.REC_l, ph1.SEND_r, ph2.SEND_l);
+		chopstick(ph2.REC_r, ph3.REC_l, ph2.SEND_r, ph3.SEND_l);
+		chopstick(ph3.REC_r, ph1.REC_l, ph3.SEND_r, ph3.SEND_l);
+	}
+}

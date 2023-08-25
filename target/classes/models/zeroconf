@@ -1,0 +1,31 @@
+automaton host (SEND: out int, REC: in bool) {
+	variables {
+		ip : int 0 .. 4 init 0;
+		mac : int init 1;
+		probnum : int init 1;
+	}
+	transitions {
+		ip == 0 -> ip = 1;
+		ip != 0 && probnum != 0 -> {
+			SEND.reqWrite = true;
+			SEND.value = ip;
+			sync SEND;
+			REC.reqRead = true;
+		}
+	}
+}
+
+automaton ehost (SEND: out bool, REC: in int) {
+	variables {
+		ip : int init 1;
+		tem : int init 0;
+	}
+	transitions {
+		REC.reqRead == false -> REC.reqWrite = true;
+		REC.reqRead == true && REC.reqWrite == true -> {
+			sync REC;
+			tem = REC.value;
+		}
+		tem == ip -> 
+	}
+}
